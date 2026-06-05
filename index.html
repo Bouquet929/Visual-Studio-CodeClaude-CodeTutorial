@@ -140,16 +140,23 @@
             background: rgba(0,0,0,.88);
             justify-content: center;
             align-items: center;
-            cursor: zoom-out;
+            cursor: grab;
+            overflow: hidden;
         }
         .lightbox-overlay.active { display: flex; }
+        .lightbox-overlay.dragging { cursor: grabbing; }
+        .lightbox-overlay.zoomed { cursor: move; }
         .lightbox-overlay img {
             max-width: 92vw;
             max-height: 92vh;
             border-radius: 6px;
-            cursor: default;
             box-shadow: 0 8px 40px rgba(0,0,0,.5);
             border: 2px solid rgba(255,255,255,.15);
+            transform-origin: center center;
+            transition: none;
+            user-select: none;
+            -webkit-user-drag: none;
+            pointer-events: auto;
         }
         .lightbox-close {
             position: fixed;
@@ -181,6 +188,67 @@
             .lightbox-hint { display: none !important; }
         }
 
+        /* 缩放控制条 */
+        .zoom-controls {
+            display: none;
+            position: fixed;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10000;
+            align-items: center;
+            gap: 10px;
+            background: rgba(40, 40, 40, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 8px 16px;
+            border-radius: 28px;
+            box-shadow: 0 4px 16px rgba(0,0,0,.4);
+        }
+        .lightbox-overlay.active .zoom-controls { display: flex; }
+        .zoom-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,.25);
+            background: rgba(255,255,255,.1);
+            color: #fff;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background .15s;
+            position: relative;
+            line-height: 1;
+        }
+        .zoom-btn:hover { background: rgba(255,255,255,.25); }
+        .zoom-btn:active { background: rgba(255,255,255,.35); }
+        .zoom-btn .zoom-symbol {
+            position: absolute;
+            font-size: 11px;
+            font-weight: 700;
+            bottom: -2px;
+            right: -2px;
+            background: rgba(0,0,0,.7);
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+        .zoom-pct {
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            min-width: 44px;
+            text-align: center;
+            user-select: none;
+            letter-spacing: .5px;
+        }
+
         /* ============ 代码块 ============ */
         .code-block-wrapper {
             position: relative;
@@ -190,16 +258,16 @@
             border: 1px solid var(--border);
             background: var(--code-bg);
         }
-        .code-block-wrapper .code-lang-tag {
-            position: absolute;
-            top: 8px;
-            right: 60px;
-            font-size: 11px;
-            color: #999;
-            text-transform: uppercase;
-            letter-spacing: .5px;
-            z-index: 2;
-            pointer-events: none;
+        .code-block-wrapper .code-title {
+            display: flex;
+            align-items: center;
+            padding: 8px 18px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            background: #eef1f5;
+            border-bottom: 1px solid var(--border);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
         }
         .code-block-wrapper pre {
             margin: 0;
@@ -215,19 +283,19 @@
         }
         .copy-btn {
             position: absolute;
-            top: 6px;
+            top: 5px;
             right: 10px;
-            z-index: 2;
-            padding: 4px 10px;
-            font-size: 12px;
-            background: #fff;
-            border: 1px solid var(--border);
+            z-index: 3;
+            padding: 3px 9px;
+            font-size: 11px;
+            background: rgba(255,255,255,.85);
+            border: 1px solid rgba(0,0,0,.1);
             border-radius: 4px;
             cursor: pointer;
             color: #666;
             transition: all .15s;
         }
-        .copy-btn:hover { background: #f0f0f0; color: #333; }
+        .copy-btn:hover { background: #fff; color: #333; }
         .copy-btn.copied { background: #ecfdf5; border-color: #6ee7b7; color: #065f46; }
 
         /* 内联代码 */
@@ -337,9 +405,14 @@
 <!-- ============ Lightbox 组件 ============ -->
 <div class="lightbox-overlay" id="lightbox-overlay">
     <img id="lightbox-img" src="" alt="预览大图" />
+    <div class="zoom-controls" id="zoom-controls">
+        <button class="zoom-btn" id="zoom-out" title="缩小">🔍<span class="zoom-symbol">−</span></button>
+        <span class="zoom-pct" id="zoom-pct">100%</span>
+        <button class="zoom-btn" id="zoom-in" title="放大">🔍<span class="zoom-symbol">+</span></button>
+    </div>
 </div>
 <span class="lightbox-close" id="lightbox-close">&times;</span>
-<span class="lightbox-hint">点击空白处 / 按 Esc 关闭</span>
+<span class="lightbox-hint">滚轮缩放 · 拖拽平移 · 双击切换 · Esc关闭</span>
 
 <!-- ============ 主内容 ============ -->
 <div class="container">
@@ -354,7 +427,7 @@
         <h2>一、安装Visual Studio Code（后续简称为VS）</h2>
         <p>网页链接：<a href="https://code.visualstudio.com/" target="_blank" rel="noopener">https://code.visualstudio.com/</a></p>
         <p class="img-caption">图1-Visual Studio Code官方界面</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780639138572-2f550578-a69d-4a76-bbde-7093bf4ea832.png" alt="Visual Studio Code官方界面" loading="lazy" />
+        <img src="photo/Visual Studio Code官方界面.png" alt="Visual Studio Code官方界面" loading="lazy" />
         <p>点击下载即可（Windows可以直接点中间的 <strong>Download for Windows</strong>）</p>
 
         <!-- ====== 二、登录VS ====== -->
@@ -374,58 +447,59 @@
         <h3>（二）方法一：官方版安装（需要开启代理）</h3>
         <p>第一步进入官方文档：<a href="https://code.claude.com/docs/zh-CN/overview#native-install-recommended" target="_blank" rel="noopener">https://code.claude.com/docs/zh-CN/overview#native-install-recommended</a></p>
         <p class="img-caption">图2-官方文档界面</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780639313320-7bf54eab-4aaa-4e99-9ca8-694e31ff557f.png" alt="官方文档界面" loading="lazy" />
+        <img src="photo/官方文档界面.png" alt="官方文档界面" loading="lazy" />
 
         <p>这里我以 <strong>Windows PowerShell</strong> 为例：输入指令 <code>irm https://claude.ai/install.ps1 | iex</code></p>
         <p class="img-caption">图3-开启代理的正常安装</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780639377873-9ef03078-ee5b-4a1c-a8cf-8e5ac8261958.png" alt="开启代理的正常安装" loading="lazy" />
+        <img src="photo/开启代理的正常安装.png" alt="开启代理的正常安装" loading="lazy" />
 
         <p>如果不开代理的话会这样：</p>
         <p class="img-caption">图4-不开代理会报错</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780639440196-9e118d50-fc76-4c05-af7a-9eb09971398f.png" alt="不开代理会报错" loading="lazy" />
+        <img src="photo/不开代理会报错.png" alt="不开代理会报错" loading="lazy" />
 
         <p class="img-caption">图5-安装成功的界面</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780639544498-97fa4410-6346-45ff-a3d4-79c929933201.png" alt="安装成功的界面" loading="lazy" />
+        <img src="photo/安装成功的界面.png" alt="安装成功的界面" loading="lazy" />
 
         <p>这里安装成功之后它提示我没有设置环境变量，没设置的话会显示：</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780639732602-80563691-e291-4f96-94af-5da4105a1c04.png" alt="环境变量未设置" loading="lazy" />
+        <img src="photo/未设置.png" alt="环境变量未设置" loading="lazy" />
         <p>我直接让AI帮我生成了配置环境变量的指令，之后把它粘贴到PowerShell里面就好了。</p>
 
         <p class="img-caption">图6-快速解决</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780639856847-6ff5b86e-8519-4777-b492-58e2883fa53e.png" alt="快速解决环境变量" loading="lazy" />
+        <img src="photo/快速解决.png" alt="快速解决环境变量" loading="lazy" />
 
         <p>这样就能正常查看到版本了，也就算正式安装成功了。</p>
         <p class="img-caption">图7-安装成功的版本显示</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780639943965-bb682031-98fe-4fd7-b09b-001efb833ed9.png" alt="安装成功的版本显示" loading="lazy" />
+        <img src="photo/图7.png" alt="安装成功的版本显示" loading="lazy" />
 
         <h3>（三）方法二：使用npm安装</h3>
         <p>首先我们需要确保电脑上有Node.js，下载地址：<a href="https://nodejs.org/zh-cn/download" target="_blank" rel="noopener">https://nodejs.org/zh-cn/download</a></p>
         <p class="img-caption">图8-Node.js官网界面</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780640064273-4f8f3eea-8a6e-4769-90be-349377f1d6ea.png" alt="Node.js官网界面" loading="lazy" />
+        <img src="photo/图8.png" alt="Node.js官网界面" loading="lazy" />
 
         <p>下载完之后我们来验证一下是否安装成功：</p>
         <p class="img-caption">图9-Node安装成功图</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780640163112-23ac301f-ff75-47bf-8490-1b3df145846f.png" alt="Node安装成功" loading="lazy" />
+        <img src="photo/图9.png" alt="Node安装成功" loading="lazy" />
 
         <p>然后我们可以不使用代理，直接用国内镜像来安装，这样速度会更快一点。安装指令：</p>
         <div class="code-block-wrapper">
+            <div class="code-title">Bash — 安装指令</div>
             <button class="copy-btn" onclick="copyCode(this)">复制</button>
             <pre><code class="language-bash">npm install -g @anthropic-ai/claude-code --registry=https://registry.npmmirror.com</code></pre>
         </div>
 
         <p class="img-caption">图10-安装完成显示</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780640263256-8cc4c390-01f8-4eb6-9382-220d16cb974c.png" alt="安装完成" loading="lazy" />
+        <img src="photo/图10.png" alt="安装完成" loading="lazy" />
         <p>至此我们就已经成功安装上Claude Code了。</p>
 
         <!-- ====== 四、Claude Code使用教程 ====== -->
         <h2>四、Claude Code使用教程</h2>
         <p>这里我用VS新建了一个文件夹，然后在终端里面输入 <code>claude</code>，这时候我们发现虽然开启了代理，但依然显示无法连接到网络。</p>
         <p class="img-caption">图11-无法连接到网络</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780640458995-198762ea-7107-4676-89f0-393bd9b8c916.png" alt="无法连接到网络" loading="lazy" />
+        <img src="photo/图11.png" alt="无法连接到网络" loading="lazy" />
 
         <p>解决方法是使用支持 <strong>TUN（虚拟网卡）</strong>功能的代理软件，开启TUN模式之后，软件就可以正常使用了。</p>
         <p class="img-caption">图12-开启TUN模式</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780640535091-8a8f122c-e0fe-4b8d-b171-8016699db855.png" alt="开启TUN模式" loading="lazy" />
+        <img src="photo/图12.png" alt="开启TUN模式" loading="lazy" />
 
         <p>第一步它让我们选一个主题，然后是选择登录方式。</p>
         <ol>
@@ -434,36 +508,36 @@
             <li>使用官方支持的第三方平台，目前只有图中写的这三家</li>
         </ol>
         <p class="img-caption">图13-官方支持的第三方平台</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780641107135-f395e38b-0888-49d3-8976-0c7127121e7f.png" alt="官方支持的第三方平台" loading="lazy" />
+        <img src="photo/图13.png" alt="官方支持的第三方平台" loading="lazy" />
 
         <p>那如果我们想使用国内AI模型的API呢？</p>
         <p>答案是使用三方开源工具——<strong>CC Switch</strong></p>
         <p>这个就是在GitHub上的，所以前面VS推荐GitHub账号登录。项目地址：<a href="https://github.com/farion1231/cc-switch" target="_blank" rel="noopener">https://github.com/farion1231/cc-switch</a></p>
         <p class="img-caption">图14-GitHub上CC Switch下载</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780641325783-9ca0ef2f-dcfe-4333-8481-76e5ab8d79ef.png" alt="CC Switch下载" loading="lazy" />
+        <img src="photo/图14.png" alt="CC Switch下载" loading="lazy" />
 
         <p>我拿DeepSeek的API来举例，首先进入到DeepSeek官网，网址：<a href="https://www.deepseek.com/" target="_blank" rel="noopener">https://www.deepseek.com/</a></p>
         <p class="img-caption">图15-DeepSeek官网</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780641578866-eadd1d71-617d-4633-910d-17718c926a66.png" alt="DeepSeek官网" loading="lazy" />
+        <img src="photo/图15.png" alt="DeepSeek官网" loading="lazy" />
 
         <p>选择右侧的"<strong>API开放平台</strong>"，点击进入DeepSeek API用量界面。需要付费使用，可以先充一些余额。</p>
         <p class="img-caption">图16-DeepSeek API用量界面</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780641693726-d69cc4ef-7a2f-4d8f-a849-3948ef4b87ea.png" alt="DeepSeek API用量界面" loading="lazy" />
+        <img src="photo/图16.png" alt="DeepSeek API用量界面" loading="lazy" />
 
         <p>然后选择左侧的"<strong>API keys</strong>"，然后点击创建API key，这里让你输入名称只是为了让你给这个key进行命名，可以取方便你自己理解的名称。</p>
         <p class="img-caption">图17-创建并命名API key</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780641919695-353d3e5b-e2ad-43e4-a4bd-cb906dffce25.png" alt="创建并命名API key" loading="lazy" />
+        <img src="photo/图17.png" alt="创建并命名API key" loading="lazy" />
 
         <p>命名完成之后，他会弹出API key，请注意<strong>保存</strong>！可以拿记事本等软件来存储，关闭该对话框后，完整的API key将<strong>无法查看</strong>！</p>
         <p class="img-caption">图18-保存API key</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780642303410-e851efe8-4950-4b25-9bff-146c7fc05c1c.png" alt="保存API key" loading="lazy" />
+        <img src="photo/图18.png" alt="保存API key" loading="lazy" />
 
         <p>第二步打开CC Switch，选择DeepSeek，把密钥粘贴，然后点右下角的添加就OK了。</p>
         <p class="img-caption">图19-CC Switch粘贴密钥</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780642708454-35a97340-4614-4915-ae47-5089ccf0aaa3.png" alt="CC Switch粘贴密钥" loading="lazy" />
+        <img src="photo/图19.png" alt="CC Switch粘贴密钥" loading="lazy" />
 
         <p class="img-caption">图20-CC Switch添加供应商</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780642636328-1232cab3-a871-427d-b115-9b484e097788.png" alt="CC Switch添加供应商" loading="lazy" />
+        <img src="photo/图20.png" alt="CC Switch添加供应商" loading="lazy" />
 
         <p>添加完成后我们再重新打开终端，输入 <code>claude</code>，这时候就没有登录按钮了，接入国产大模型API的话是不需要代理的。到这里我们就可以正常使用CC了。</p>
 
@@ -471,7 +545,7 @@
         <h2>五、VS中运用Claude插件教程</h2>
         <p>第一步，我们先在D盘（也可以是其他盘）新建一个文件夹，用于存放数据。我在D盘建了一个文件夹：</p>
         <p class="img-caption">图21-建文件夹</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780643344052-893b042a-e2e2-4450-9453-73c3f39784cd.png" alt="建文件夹" loading="lazy" />
+        <img src="photo/图21.png" alt="建文件夹" loading="lazy" />
 
         <p>第二步我们打开VS，在左上角的"<strong>File</strong>"中选择"<strong>Open Folder</strong>"，打开我们新建的文件夹。然后就可以开始使用Claude帮我们编写了。<strong>！！</strong><u>同样也可以在VS中的CC窗口中，与CC对话，让他帮你下载Python和配置虚拟环境。</u></p>
 
@@ -481,6 +555,7 @@
         <p>Flask 的基本工作原理：Flask 的核心逻辑是<strong>路由（Routing）</strong>。你可以理解为：告诉程序，当用户访问某个网址（路径）时，应该调用哪段函数代码。</p>
 
         <div class="code-block-wrapper">
+            <div class="code-title">Python — Flask 示例</div>
             <button class="copy-btn" onclick="copyCode(this)">复制</button>
             <pre><code class="language-python">from flask import Flask
 
@@ -497,10 +572,11 @@ if __name__ == '__main__':
 
         <p>1、如果想做动态电商类的网页的话，可以在左上角找到"<strong>Terminal</strong>"，选择下拉第一个"<strong>New Terminal</strong>"，打开一个新的终端。</p>
         <p class="img-caption">图22-VS菜单栏</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780643519279-feabb73f-bdd3-4aaf-bd41-739f3cd416a2.png" alt="VS菜单栏" loading="lazy" />
+        <img src="photo/图22.png" alt="VS菜单栏" loading="lazy" />
 
         <p>2、在终端中输入（可以先看下方的<strong>重要建议</strong>）</p>
         <div class="code-block-wrapper">
+            <div class="code-title">Bash</div>
             <button class="copy-btn" onclick="copyCode(this)">复制</button>
             <pre><code class="language-bash">pip install flask</code></pre>
         </div>
@@ -508,6 +584,7 @@ if __name__ == '__main__':
         <p>注意：如果你的电脑里同时安装了 Python 2 和 Python 3，或者使用了虚拟环境，可能需要使用 <code>pip3 install flask</code>。</p>
         <p>你可以输入以下命令来检查是否已安装：</p>
         <div class="code-block-wrapper">
+            <div class="code-title">Bash</div>
             <button class="copy-btn" onclick="copyCode(this)">复制</button>
             <pre><code class="language-bash">pip show flask</code></pre>
         </div>
@@ -520,6 +597,7 @@ if __name__ == '__main__':
 
         <p>1、在项目文件夹下创建虚拟环境：</p>
         <div class="code-block-wrapper">
+            <div class="code-title">Bash — 创建虚拟环境</div>
             <button class="copy-btn" onclick="copyCode(this)">复制</button>
             <pre><code class="language-bash"># Windows
 python -m venv venv
@@ -536,12 +614,13 @@ python3 -m venv venv</code></pre>
 
         <p>3、在虚拟环境内安装 Flask：</p>
         <div class="code-block-wrapper">
+            <div class="code-title">Bash</div>
             <button class="copy-btn" onclick="copyCode(this)">复制</button>
             <pre><code class="language-bash">pip install flask</code></pre>
         </div>
 
         <p class="img-caption">图23-终端位置（在VS界面中下部分）</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780644555119-7e50e033-85c4-46ee-a652-0b9b2837538f.png" alt="终端位置" loading="lazy" />
+        <img src="photo/图23.png" alt="终端位置" loading="lazy" />
 
         <!-- ====== 六、小白在VS中使用CC的建议 ====== -->
         <h2>六、小白在VS中使用CC的建议</h2>
@@ -578,7 +657,7 @@ python3 -m venv venv</code></pre>
 
         <p>我就把这个指令复制下来之后发给了CC，CC就开始运作了，最后产出的结果如图：</p>
         <p class="img-caption">图24-搭建LDA分析环境</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780645591302-749203e9-d545-49cf-9a85-609eb6f51dea.png" alt="搭建LDA分析环境" loading="lazy" />
+        <img src="photo/图24.png" alt="搭建LDA分析环境" loading="lazy" />
 
         <p>非常的方便对吧。所以当你有需求，需要去询问他人或者老师时，可以直接将该问题发给Gemini，告诉他你的问题你的要求和你现在的情况，他会给到你发给CC的指令，CC会帮你进行编写和排查。</p>
 
@@ -596,13 +675,13 @@ python3 -m venv venv</code></pre>
 
         <p><strong>第二步</strong>，新建仓库（Repository）：点击右上角的 + 号 → New repository。</p>
         <p class="img-caption">图25-在GitHub上新建仓库</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780646069016-eced20b3-b5e4-443b-ab62-1a069701ff5f.png" alt="新建仓库" loading="lazy" />
+        <img src="photo/图25.png" alt="新建仓库" loading="lazy" />
 
         <p>给项目起个名字（例如 <code>Caribbean-Climate-Simulation</code>）。</p>
         <p><strong>Public/Private</strong>：必须选 <strong>Public（公开）</strong>，否则免费版 GitHub Pages 无法托管。</p>
         <p>Add a README file（可选），点击 Create repository。</p>
         <p class="img-caption">图26-填写仓库基本信息</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780646231709-10f41bff-7b01-4498-bcd9-41641bd73427.png" alt="填写仓库基本信息" loading="lazy" />
+        <img src="photo/图26.png" alt="填写仓库基本信息" loading="lazy" />
 
         <p><strong>第三步</strong>，如果你不熟悉 Git 命令行，可以直接使用网页上传：</p>
         <ul>
@@ -612,7 +691,7 @@ python3 -m venv venv</code></pre>
             <li>等待上传完成后，在底部的输入框写下提交信息（比如 "Initial release"），点击 Commit changes。</li>
         </ul>
         <p class="img-caption">图27-你所建的仓库中上传本地文件夹中的内容</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780646748466-680b6412-1e11-43bc-ae1d-8a3d0ceeb718.png" alt="上传文件" loading="lazy" />
+        <img src="photo/图27.png" alt="上传文件" loading="lazy" />
 
         <p><strong>第四步</strong>，在 GitHub 仓库页面，点击顶部的 <strong>Settings（设置）</strong>。</p>
         <ul>
@@ -621,11 +700,11 @@ python3 -m venv venv</code></pre>
             <li>点击 <strong>Save</strong>。</li>
         </ul>
         <p class="img-caption">图28-激活 GitHub Pages</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780646862106-a9cfc3ea-2a8f-4bfd-89d6-35edbe5bd174.png" alt="激活GitHub Pages" loading="lazy" />
+        <img src="photo/图28.png" alt="激活GitHub Pages" loading="lazy" />
 
         <p><strong>第五步</strong>，保存后，顶部会出现一个黄色或蓝色的进度条。稍等 1-3 分钟。刷新页面，你会看到一行绿色的文字："<strong>Your site is live at...</strong>"。点击那个链接，你的网页就正式发布在互联网上了！</p>
         <p class="img-caption">图29-网页位置</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780646987818-2187c92a-def9-4607-a201-e3603359f48d.png" alt="网页位置" loading="lazy" />
+        <img src="photo/图29.png" alt="网页位置" loading="lazy" />
 
         <h3>（三）动态网页</h3>
         <p>部署动态网页就会相对麻烦一些，上传到GitHub中的操作大体是一样的。下面我们来一起看。</p>
@@ -637,12 +716,14 @@ python3 -m venv venv</code></pre>
 
         <p><strong>第四步</strong>，在 VS Code 中提交代码。打开 VS Code 的终端，初始化 Git（如果没有的话）：</p>
         <div class="code-block-wrapper">
+            <div class="code-title">Bash</div>
             <button class="copy-btn" onclick="copyCode(this)">复制</button>
             <pre><code class="language-bash">git init</code></pre>
         </div>
 
         <p>至关重要的一步：在项目根目录下创建一个名为 <code>.gitignore</code> 的文件，里面写上：</p>
         <div class="code-block-wrapper">
+            <div class="code-title">.gitignore</div>
             <button class="copy-btn" onclick="copyCode(this)">复制</button>
             <pre><code class="language-text">__pycache__/
 *.pyc
@@ -655,6 +736,7 @@ instance/</code></pre>
 
         <p>关联远程仓库并推送到 GitHub（根据 GitHub 页面上提示的命令操作）：</p>
         <div class="code-block-wrapper">
+            <div class="code-title">Bash — Git 推送</div>
             <button class="copy-btn" onclick="copyCode(this)">复制</button>
             <pre><code class="language-bash">git add .
 git commit -m "first commit"
@@ -671,6 +753,7 @@ git push -u origin main</code></pre>
         <h4>1. 生成 <code>requirements.txt</code>（依赖包列表）</h4>
         <p>告诉服务器需要安装哪些 Python 库。在 VS Code 终端运行：</p>
         <div class="code-block-wrapper">
+            <div class="code-title">Bash</div>
             <button class="copy-btn" onclick="copyCode(this)">复制</button>
             <pre><code class="language-bash">pip freeze > requirements.txt</code></pre>
         </div>
@@ -678,6 +761,7 @@ git push -u origin main</code></pre>
 
         <p><strong>第五步</strong>，创建 Procfile（运行指令）。告诉服务器用什么命令启动你的网页。在根目录下新建一个名为 <code>Procfile</code> 的文件（注意：没有后缀名），内容写上：</p>
         <div class="code-block-wrapper">
+            <div class="code-title">Procfile</div>
             <button class="copy-btn" onclick="copyCode(this)">复制</button>
             <pre><code class="language-text">web: gunicorn app:app</code></pre>
         </div>
@@ -685,6 +769,7 @@ git push -u origin main</code></pre>
 
         <p>修改并提交：在 VS Code 中保存这两个文件，再次推送到 GitHub：</p>
         <div class="code-block-wrapper">
+            <div class="code-title">Bash</div>
             <button class="copy-btn" onclick="copyCode(this)">复制</button>
             <pre><code class="language-bash">git add .
 git commit -m "add config files"
@@ -726,13 +811,13 @@ git push</code></pre>
             <li><strong>注册 Render</strong>：前往 <a href="https://render.com" target="_blank" rel="noopener">render.com</a>，直接选择 Sign in with GitHub（用 GitHub 账号登录）。</li>
         </ol>
         <p class="img-caption">图30-登录Render</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780648036382-d331b476-3dae-4d78-b281-0769f3814eb8.png" alt="登录Render" loading="lazy" />
+        <img src="photo/图30.png" alt="登录Render" loading="lazy" />
 
         <ol start="2">
             <li><strong>新建服务</strong>：点击右上角的 New + → 选择 Web Service。</li>
         </ol>
         <p class="img-caption">图31-创建网页服务</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780648180634-f3895a81-1f5b-4d8c-97aa-3f3eafdaa33e.png" alt="创建网页服务" loading="lazy" />
+        <img src="photo/图31.png" alt="创建网页服务" loading="lazy" />
 
         <ol start="3">
             <li><strong>连接 GitHub 仓库</strong>：在列表中找到你刚刚上传的 Flask 仓库，点击 Connect。</li>
@@ -746,7 +831,7 @@ git push</code></pre>
             </li>
         </ol>
         <p class="img-caption">图32-填写信息</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780648278025-0ccd7f66-48bb-4817-8c76-f4d58fdb16db.png" alt="填写信息" loading="lazy" />
+        <img src="photo/图32.png" alt="填写信息" loading="lazy" />
 
         <ol start="5">
             <li><strong>配置你的 DeepSeek API Key（最重要）</strong>：
@@ -765,7 +850,7 @@ git push</code></pre>
         <p>以上内容完成后，Render 会开始自动下载你的代码、安装 Python 依赖并运行。大约需要 2-5 分钟。部署成功后，你会在 Render 页面的左上角看到一个形如 <a href="https://my-flask-app.onrender.com" target="_blank" rel="noopener">https://my-flask-app.onrender.com</a> 的专属网址。</p>
         <p>现在，你可以把这个网址复制下来，发到你自己的手机上，或者转发给身边的朋友。无论他们在哪里，只要点击这个链接，就能直接打开并使用你开发的这个搭载了 DeepSeek 模型的 Flask 网页了！</p>
         <p class="img-caption">图33-部署成功界面</p>
-        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780648399680-5c414afa-89e5-4360-a2d7-e8ef65fa22ac.png" alt="部署成功界面" loading="lazy" />
+        <img src="photo/图33.png" alt="部署成功界面" loading="lazy" />
 
         <h3>（四）关于Render的一些须知</h3>
         <p>Render 的免费额度（Free Tier）对于学生和个人开发者做项目展示、课设或者日常调试来说完全够用，而且它不需要绑定信用卡。不过因为是免费的，它有一些具体的限制条件。以下是 Render 免费额度的核心细节：</p>
@@ -836,29 +921,209 @@ git push</code></pre>
         });
     }
 
-    // ===== Lightbox 图片放大 =====
+    // ===== Lightbox 图片放大/缩小/拖拽 =====
     const overlay = document.getElementById('lightbox-overlay');
     const lbImg = document.getElementById('lightbox-img');
     const lbClose = document.getElementById('lightbox-close');
+    const zoomPct = document.getElementById('zoom-pct');
+    const btnZoomIn = document.getElementById('zoom-in');
+    const btnZoomOut = document.getElementById('zoom-out');
+
+    let scale = 1;
+    let translateX = 0, translateY = 0;
+    let isDragging = false;
+    let dragStartX = 0, dragStartY = 0;
+    let startTranslateX = 0, startTranslateY = 0;
+
+    function updateZoomUI() {
+        const pct = Math.round(scale * 100);
+        zoomPct.textContent = pct + '%';
+    }
+
+    // 重置所有变换状态
+    function resetTransform() {
+        scale = 1;
+        translateX = 0;
+        translateY = 0;
+        applyTransform();
+        updateZoomUI();
+        overlay.classList.remove('zoomed', 'dragging');
+    }
+
+    function applyTransform() {
+        lbImg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+    }
+
+    // 限制平移范围
+    function clampTranslate() {
+        if (scale <= 1) {
+            translateX = 0;
+            translateY = 0;
+            return;
+        }
+        const rect = lbImg.getBoundingClientRect();
+        const imgW = rect.width / scale;
+        const imgH = rect.height / scale;
+        const viewW = overlay.clientWidth;
+        const viewH = overlay.clientHeight;
+        const maxX = Math.max(0, (imgW * scale - viewW) / 2 + 50);
+        const maxY = Math.max(0, (imgH * scale - viewH) / 2 + 50);
+        translateX = Math.min(maxX, Math.max(-maxX, translateX));
+        translateY = Math.min(maxY, Math.max(-maxY, translateY));
+    }
+
+    // 打开 lightbox
+    function openLightbox(imgSrc, imgAlt) {
+        lbImg.src = imgSrc;
+        lbImg.alt = imgAlt;
+        resetTransform();
+        overlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    // 关闭 lightbox
+    function closeLightbox() {
+        overlay.classList.remove('active', 'zoomed', 'dragging');
+        document.body.style.overflow = '';
+        resetTransform();
+    }
 
     // 绑定所有图片
     document.querySelectorAll('.content img').forEach(img => {
-        img.addEventListener('click', () => {
-            lbImg.src = img.src;
-            lbImg.alt = img.alt;
-            overlay.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        });
+        img.addEventListener('click', () => openLightbox(img.src, img.alt));
     });
 
-    // 关闭函数
-    function closeLightbox() {
-        overlay.classList.remove('active');
-        document.body.style.overflow = '';
+    // ===== 滚轮缩放 =====
+    overlay.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const rect = lbImg.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        // 以鼠标位置为原点缩放
+        const oldScale = scale;
+        const zoomSpeed = 0.08;
+        if (e.deltaY < 0) {
+            scale = Math.min(8, scale + zoomSpeed * scale);
+        } else {
+            scale = Math.max(0.15, scale - zoomSpeed * scale);
+        }
+
+        // 调整平移使缩放以鼠标为中心
+        const scaleChange = scale / oldScale;
+        translateX = mouseX - (mouseX - translateX) * scaleChange;
+        translateY = mouseY - (mouseY - translateY) * scaleChange;
+        clampTranslate();
+        applyTransform();
+        updateZoomUI();
+
+        // 更新 cursor 样式
+        if (scale > 1) {
+            overlay.classList.add('zoomed');
+        } else {
+            overlay.classList.remove('zoomed');
+            translateX = 0;
+            translateY = 0;
+            applyTransform();
+        }
+    }, { passive: false });
+
+    // ===== 拖拽平移 =====
+    overlay.addEventListener('mousedown', (e) => {
+        if (e.target === lbImg && scale > 1) {
+            e.preventDefault();
+            isDragging = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            startTranslateX = translateX;
+            startTranslateY = translateY;
+            overlay.classList.add('dragging');
+        }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        translateX = startTranslateX + (e.clientX - dragStartX);
+        translateY = startTranslateY + (e.clientY - dragStartY);
+        clampTranslate();
+        applyTransform();
+    });
+
+    window.addEventListener('mouseup', () => {
+        if (isDragging) {
+            isDragging = false;
+            overlay.classList.remove('dragging');
+        }
+    });
+
+    // ===== 缩放按钮 =====
+    function zoomIn() {
+        const rect = lbImg.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const mouseX = cx - rect.left;
+        const mouseY = cy - rect.top;
+        const oldScale = scale;
+        scale = Math.min(8, scale * 1.25);
+        const scaleChange = scale / oldScale;
+        translateX = mouseX - (mouseX - translateX) * scaleChange;
+        translateY = mouseY - (mouseY - translateY) * scaleChange;
+        clampTranslate();
+        applyTransform();
+        updateZoomUI();
+        if (scale > 1) overlay.classList.add('zoomed');
     }
 
-    // 点击遮罩关闭
-    overlay.addEventListener('click', closeLightbox);
+    function zoomOut() {
+        const rect = lbImg.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const mouseX = cx - rect.left;
+        const mouseY = cy - rect.top;
+        const oldScale = scale;
+        scale = Math.max(0.15, scale / 1.25);
+        const scaleChange = scale / oldScale;
+        translateX = mouseX - (mouseX - translateX) * scaleChange;
+        translateY = mouseY - (mouseY - translateY) * scaleChange;
+        if (scale <= 1) {
+            overlay.classList.remove('zoomed');
+            translateX = 0;
+            translateY = 0;
+        }
+        clampTranslate();
+        applyTransform();
+        updateZoomUI();
+    }
+
+    btnZoomIn.addEventListener('click', (e) => { e.stopPropagation(); zoomIn(); });
+    btnZoomOut.addEventListener('click', (e) => { e.stopPropagation(); zoomOut(); });
+
+    // ===== 双击切换：适应屏幕 ↔ 放大 =====
+    lbImg.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        if (scale > 1.01) {
+            resetTransform();
+            updateZoomUI();
+        } else {
+            const rect = lbImg.getBoundingClientRect();
+            const nativeW = rect.width;
+            const nativeH = rect.height;
+            const targetScale = Math.max(2.5, Math.min(5, Math.max(
+                overlay.clientWidth / nativeW * 1.2,
+                overlay.clientHeight / nativeH * 1.2
+            )));
+            scale = targetScale;
+            clampTranslate();
+            applyTransform();
+            updateZoomUI();
+            overlay.classList.add('zoomed');
+        }
+    });
+
+    // 点击遮罩空白处关闭
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeLightbox();
+    });
 
     // 点击 X 关闭
     lbClose.addEventListener('click', (e) => {
@@ -873,8 +1138,10 @@ git push</code></pre>
         }
     });
 
-    // 阻止图片本身点击冒泡（避免点放大图时关闭）
-    lbImg.addEventListener('click', (e) => e.stopPropagation());
+    // 阻止图片上的单击冒泡（不关闭，留作拖拽起点）
+    lbImg.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
 </script>
 </body>
 </html>
