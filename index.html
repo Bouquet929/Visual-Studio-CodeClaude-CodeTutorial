@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual Studio Code、Claude Code、API调用教程</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <style>
+        /* ============ 基础样式 ============ */
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #555;
+            --border: #e0e0e0;
+            --accent: #2563eb;
+            --accent-light: #eff6ff;
+            --code-bg: #f6f8fa;
+            --shadow: 0 2px 8px rgba(0,0,0,.08);
+            --radius: 8px;
+            --max-width: 860px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+            background: #fafafa;
+            color: var(--text);
+            line-height: 1.8;
+            font-size: 16px;
+        }
+
+        /* ============ 顶部导航 ============ */
+        .topbar {
+            position: sticky; top: 0; z-index: 100;
+            background: #fff; border-bottom: 1px solid var(--border);
+            padding: 12px 20px; display: flex; align-items: center; gap: 12px;
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        }
+        .topbar .logo { font-weight: 700; font-size: 15px; color: var(--text); }
+        .topbar .sep { color: #ccc; }
+
+        /* ============ 主容器 ============ */
+        .container {
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+        }
+
+        /* ============ 标题区 ============ */
+        .article-header {
+            text-align: center;
+            padding: 40px 0 32px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 36px;
+        }
+        .article-header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #111;
+        }
+        .article-header .meta {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        /* ============ 内容排版 ============ */
+        .content h2 {
+            font-size: 22px;
+            margin: 40px 0 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--accent);
+            color: #111;
+        }
+        .content h3 {
+            font-size: 18px;
+            margin: 28px 0 12px;
+            color: #222;
+        }
+        .content h4 {
+            font-size: 16px;
+            margin: 20px 0 8px;
+            color: #333;
+        }
+        .content p {
+            margin: 14px 0;
+            color: #333;
+        }
+        .content a {
+            color: var(--accent);
+            text-decoration: none;
+            word-break: break-all;
+        }
+        .content a:hover { text-decoration: underline; }
+        .content strong { font-weight: 600; color: #111; }
+        .content u { text-decoration: underline; }
+        .content ul, .content ol {
+            margin: 12px 0 12px 24px;
+        }
+        .content li { margin: 6px 0; }
+        .content blockquote {
+            border-left: 4px solid var(--accent);
+            background: var(--accent-light);
+            padding: 14px 18px;
+            margin: 18px 0;
+            border-radius: 0 var(--radius) var(--radius) 0;
+            color: #444;
+        }
+
+        /* ============ 图片样式 + Lightbox ============ */
+        .content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            cursor: zoom-in;
+            transition: transform .2s, box-shadow .2s;
+            display: block;
+            margin: 20px auto;
+        }
+        .content img:hover {
+            transform: scale(1.02);
+            box-shadow: var(--shadow);
+        }
+        .img-caption {
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: -14px;
+            margin-bottom: 16px;
+        }
+
+        /* Lightbox 遮罩 */
+        .lightbox-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(0,0,0,.88);
+            justify-content: center;
+            align-items: center;
+            cursor: zoom-out;
+        }
+        .lightbox-overlay.active { display: flex; }
+        .lightbox-overlay img {
+            max-width: 92vw;
+            max-height: 92vh;
+            border-radius: 6px;
+            cursor: default;
+            box-shadow: 0 8px 40px rgba(0,0,0,.5);
+            border: 2px solid rgba(255,255,255,.15);
+        }
+        .lightbox-close {
+            position: fixed;
+            top: 16px;
+            right: 20px;
+            z-index: 10000;
+            font-size: 36px;
+            color: #fff;
+            cursor: pointer;
+            width: 44px; height: 44px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: rgba(255,255,255,.12);
+            transition: background .2s;
+            line-height: 1;
+        }
+        .lightbox-overlay.active ~ .lightbox-close { display: flex; }
+        .lightbox-close:hover { background: rgba(255,255,255,.25); }
+        .lightbox-hint {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            z-index: 10000; color: rgba(255,255,255,.6); font-size: 13px;
+            display: none;
+            pointer-events: none;
+        }
+        .lightbox-overlay.active ~ .lightbox-hint { display: block; }
+        @media (max-width: 600px) {
+            .lightbox-hint { display: none !important; }
+        }
+
+        /* ============ 代码块 ============ */
+        .code-block-wrapper {
+            position: relative;
+            margin: 18px 0;
+            border-radius: var(--radius);
+            overflow: hidden;
+            border: 1px solid var(--border);
+            background: var(--code-bg);
+        }
+        .code-block-wrapper .code-lang-tag {
+            position: absolute;
+            top: 8px;
+            right: 60px;
+            font-size: 11px;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            z-index: 2;
+            pointer-events: none;
+        }
+        .code-block-wrapper pre {
+            margin: 0;
+            padding: 16px 18px;
+            overflow-x: auto;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .code-block-wrapper pre code {
+            font-family: "Fira Code", "Cascadia Code", "JetBrains Mono", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+            background: none !important;
+            padding: 0 !important;
+        }
+        .copy-btn {
+            position: absolute;
+            top: 6px;
+            right: 10px;
+            z-index: 2;
+            padding: 4px 10px;
+            font-size: 12px;
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            cursor: pointer;
+            color: #666;
+            transition: all .15s;
+        }
+        .copy-btn:hover { background: #f0f0f0; color: #333; }
+        .copy-btn.copied { background: #ecfdf5; border-color: #6ee7b7; color: #065f46; }
+
+        /* 内联代码 */
+        .content code:not(pre code) {
+            background: #f0f0f0;
+            color: #d63384;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: .9em;
+            font-family: "Fira Code", "Cascadia Code", "JetBrains Mono", "SF Mono", Consolas, monospace;
+        }
+
+        /* ============ 折叠面板 (模仿语雀 details) ============ */
+        .content details {
+            margin: 16px 0;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: #fff;
+            overflow: hidden;
+            transition: box-shadow .2s;
+        }
+        .content details[open] {
+            box-shadow: var(--shadow);
+        }
+        .content details summary {
+            padding: 14px 18px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 15px;
+            user-select: none;
+            background: #f9fafb;
+            border-bottom: 1px solid transparent;
+            transition: background .15s, border-color .15s;
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .content details summary::-webkit-details-marker { display: none; }
+        .content details summary::marker { display: none; content: none; }
+        .content details summary::before {
+            content: "▸";
+            display: inline-block;
+            font-size: 12px;
+            transition: transform .25s;
+            color: #888;
+            width: 16px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .content details[open] > summary::before {
+            transform: rotate(90deg);
+        }
+        .content details[open] > summary {
+            border-bottom-color: var(--border);
+            background: #fff;
+        }
+        .content details summary:hover {
+            background: #f0f3f5;
+        }
+        .content details[open] > summary:hover {
+            background: #fff;
+        }
+        .content details .details-body {
+            padding: 16px 18px;
+        }
+
+        /* ============ 分隔线 ============ */
+        .content hr {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 32px 0;
+        }
+
+        /* ============ 红色高亮文字 ============ */
+        .text-danger { color: #DF2A3F; font-weight: 600; }
+
+        /* ============ 页脚 ============ */
+        .footer {
+            text-align: center;
+            padding: 40px 24px;
+            color: #999;
+            font-size: 13px;
+            border-top: 1px solid var(--border);
+            margin-top: 40px;
+        }
+
+        /* ============ 响应式 ============ */
+        @media (max-width: 640px) {
+            .container { padding: 20px 16px 60px; }
+            .article-header h1 { font-size: 22px; }
+            .content h2 { font-size: 19px; }
+            .content h3 { font-size: 16px; }
+            .code-block-wrapper pre { font-size: 13px; padding: 12px 14px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ============ 顶部栏 ============ -->
+<div class="topbar">
+    <span class="logo">📘 教程</span>
+    <span class="sep">/</span>
+    <span style="font-size:14px;">VS Code · Claude Code · API 调用</span>
+</div>
+
+<!-- ============ Lightbox 组件 ============ -->
+<div class="lightbox-overlay" id="lightbox-overlay">
+    <img id="lightbox-img" src="" alt="预览大图" />
+</div>
+<span class="lightbox-close" id="lightbox-close">&times;</span>
+<span class="lightbox-hint">点击空白处 / 按 Esc 关闭</span>
+
+<!-- ============ 主内容 ============ -->
+<div class="container">
+    <div class="article-header">
+        <h1>Visual Studio Code、Claude Code、API调用教程</h1>
+        <p class="meta">制作者：杭州师范大学 · 阿里巴巴商学院 · 旅游管理 253班 · 沈皓天</p>
+    </div>
+
+    <div class="content">
+
+        <!-- ====== 一、安装 Visual Studio Code ====== -->
+        <h2>一、安装Visual Studio Code（后续简称为VS）</h2>
+        <p>网页链接：<a href="https://code.visualstudio.com/" target="_blank" rel="noopener">https://code.visualstudio.com/</a></p>
+        <p class="img-caption">图1-Visual Studio Code官方界面</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780639138572-2f550578-a69d-4a76-bbde-7093bf4ea832.png" alt="Visual Studio Code官方界面" loading="lazy" />
+        <p>点击下载即可（Windows可以直接点中间的 <strong>Download for Windows</strong>）</p>
+
+        <!-- ====== 二、登录VS ====== -->
+        <h2>二、登录VS，推荐使用GitHub登录，因为后续托管网页也需要用到GitHub（以下就用GitHub作为演示）</h2>
+        <p>网页链接：<a href="https://github.com/" target="_blank" rel="noopener">https://github.com/</a></p>
+        <p>注册GitHub（需要代理）账号，然后在VS中用GitHub登录。</p>
+
+        <!-- ====== 三、Claude Code的安装教程 ====== -->
+        <h2>三、Claude Code的安装教程</h2>
+
+        <h3>（一）前言</h3>
+        <p>Claude Code（简称CC），它是Anthropic公司发布的一款AI编程助手，也就是现在常说的<strong>Vibe Coding</strong>工具，通过自然语言让AI自动生成、修改、调试代码。</p>
+        <p>CC是一个住在电脑命令行的Agent，可以自由访问我们的本地文件，直接对文件进行修改。而用网页端AI写代码，需要我们自己把代码复制下来去本地运行，出现报错还得再把错误发给AI，CC这类工具可以说大大提高了编程的效率。</p>
+        <p>它目前有桌面版和CLI版（Command-Line Interface，也就是命令行版），这里我们主要来介绍更常用的CLI版。</p>
+        <p>另外Anthropic这家公司对国内用户非常不友好，想使用CC对网络配置是有一定要求的，<strong>必须要有非国区的节点</strong>。</p>
+
+        <h3>（二）方法一：官方版安装（需要开启代理）</h3>
+        <p>第一步进入官方文档：<a href="https://code.claude.com/docs/zh-CN/overview#native-install-recommended" target="_blank" rel="noopener">https://code.claude.com/docs/zh-CN/overview#native-install-recommended</a></p>
+        <p class="img-caption">图2-官方文档界面</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780639313320-7bf54eab-4aaa-4e99-9ca8-694e31ff557f.png" alt="官方文档界面" loading="lazy" />
+
+        <p>这里我以 <strong>Windows PowerShell</strong> 为例：输入指令 <code>irm https://claude.ai/install.ps1 | iex</code></p>
+        <p class="img-caption">图3-开启代理的正常安装</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780639377873-9ef03078-ee5b-4a1c-a8cf-8e5ac8261958.png" alt="开启代理的正常安装" loading="lazy" />
+
+        <p>如果不开代理的话会这样：</p>
+        <p class="img-caption">图4-不开代理会报错</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780639440196-9e118d50-fc76-4c05-af7a-9eb09971398f.png" alt="不开代理会报错" loading="lazy" />
+
+        <p class="img-caption">图5-安装成功的界面</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780639544498-97fa4410-6346-45ff-a3d4-79c929933201.png" alt="安装成功的界面" loading="lazy" />
+
+        <p>这里安装成功之后它提示我没有设置环境变量，没设置的话会显示：</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780639732602-80563691-e291-4f96-94af-5da4105a1c04.png" alt="环境变量未设置" loading="lazy" />
+        <p>我直接让AI帮我生成了配置环境变量的指令，之后把它粘贴到PowerShell里面就好了。</p>
+
+        <p class="img-caption">图6-快速解决</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780639856847-6ff5b86e-8519-4777-b492-58e2883fa53e.png" alt="快速解决环境变量" loading="lazy" />
+
+        <p>这样就能正常查看到版本了，也就算正式安装成功了。</p>
+        <p class="img-caption">图7-安装成功的版本显示</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780639943965-bb682031-98fe-4fd7-b09b-001efb833ed9.png" alt="安装成功的版本显示" loading="lazy" />
+
+        <h3>（三）方法二：使用npm安装</h3>
+        <p>首先我们需要确保电脑上有Node.js，下载地址：<a href="https://nodejs.org/zh-cn/download" target="_blank" rel="noopener">https://nodejs.org/zh-cn/download</a></p>
+        <p class="img-caption">图8-Node.js官网界面</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780640064273-4f8f3eea-8a6e-4769-90be-349377f1d6ea.png" alt="Node.js官网界面" loading="lazy" />
+
+        <p>下载完之后我们来验证一下是否安装成功：</p>
+        <p class="img-caption">图9-Node安装成功图</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780640163112-23ac301f-ff75-47bf-8490-1b3df145846f.png" alt="Node安装成功" loading="lazy" />
+
+        <p>然后我们可以不使用代理，直接用国内镜像来安装，这样速度会更快一点。安装指令：</p>
+        <div class="code-block-wrapper">
+            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+            <pre><code class="language-bash">npm install -g @anthropic-ai/claude-code --registry=https://registry.npmmirror.com</code></pre>
+        </div>
+
+        <p class="img-caption">图10-安装完成显示</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780640263256-8cc4c390-01f8-4eb6-9382-220d16cb974c.png" alt="安装完成" loading="lazy" />
+        <p>至此我们就已经成功安装上Claude Code了。</p>
+
+        <!-- ====== 四、Claude Code使用教程 ====== -->
+        <h2>四、Claude Code使用教程</h2>
+        <p>这里我用VS新建了一个文件夹，然后在终端里面输入 <code>claude</code>，这时候我们发现虽然开启了代理，但依然显示无法连接到网络。</p>
+        <p class="img-caption">图11-无法连接到网络</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780640458995-198762ea-7107-4676-89f0-393bd9b8c916.png" alt="无法连接到网络" loading="lazy" />
+
+        <p>解决方法是使用支持 <strong>TUN（虚拟网卡）</strong>功能的代理软件，开启TUN模式之后，软件就可以正常使用了。</p>
+        <p class="img-caption">图12-开启TUN模式</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780640535091-8a8f122c-e0fe-4b8d-b171-8016699db855.png" alt="开启TUN模式" loading="lazy" />
+
+        <p>第一步它让我们选一个主题，然后是选择登录方式。</p>
+        <ol>
+            <li>登录你的Claude账号，不过你得充值它的套餐</li>
+            <li>使用Anthropic的官方API</li>
+            <li>使用官方支持的第三方平台，目前只有图中写的这三家</li>
+        </ol>
+        <p class="img-caption">图13-官方支持的第三方平台</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780641107135-f395e38b-0888-49d3-8976-0c7127121e7f.png" alt="官方支持的第三方平台" loading="lazy" />
+
+        <p>那如果我们想使用国内AI模型的API呢？</p>
+        <p>答案是使用三方开源工具——<strong>CC Switch</strong></p>
+        <p>这个就是在GitHub上的，所以前面VS推荐GitHub账号登录。项目地址：<a href="https://github.com/farion1231/cc-switch" target="_blank" rel="noopener">https://github.com/farion1231/cc-switch</a></p>
+        <p class="img-caption">图14-GitHub上CC Switch下载</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780641325783-9ca0ef2f-dcfe-4333-8481-76e5ab8d79ef.png" alt="CC Switch下载" loading="lazy" />
+
+        <p>我拿DeepSeek的API来举例，首先进入到DeepSeek官网，网址：<a href="https://www.deepseek.com/" target="_blank" rel="noopener">https://www.deepseek.com/</a></p>
+        <p class="img-caption">图15-DeepSeek官网</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780641578866-eadd1d71-617d-4633-910d-17718c926a66.png" alt="DeepSeek官网" loading="lazy" />
+
+        <p>选择右侧的"<strong>API开放平台</strong>"，点击进入DeepSeek API用量界面。需要付费使用，可以先充一些余额。</p>
+        <p class="img-caption">图16-DeepSeek API用量界面</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780641693726-d69cc4ef-7a2f-4d8f-a849-3948ef4b87ea.png" alt="DeepSeek API用量界面" loading="lazy" />
+
+        <p>然后选择左侧的"<strong>API keys</strong>"，然后点击创建API key，这里让你输入名称只是为了让你给这个key进行命名，可以取方便你自己理解的名称。</p>
+        <p class="img-caption">图17-创建并命名API key</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780641919695-353d3e5b-e2ad-43e4-a4bd-cb906dffce25.png" alt="创建并命名API key" loading="lazy" />
+
+        <p>命名完成之后，他会弹出API key，请注意<strong>保存</strong>！可以拿记事本等软件来存储，关闭该对话框后，完整的API key将<strong>无法查看</strong>！</p>
+        <p class="img-caption">图18-保存API key</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780642303410-e851efe8-4950-4b25-9bff-146c7fc05c1c.png" alt="保存API key" loading="lazy" />
+
+        <p>第二步打开CC Switch，选择DeepSeek，把密钥粘贴，然后点右下角的添加就OK了。</p>
+        <p class="img-caption">图19-CC Switch粘贴密钥</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780642708454-35a97340-4614-4915-ae47-5089ccf0aaa3.png" alt="CC Switch粘贴密钥" loading="lazy" />
+
+        <p class="img-caption">图20-CC Switch添加供应商</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780642636328-1232cab3-a871-427d-b115-9b484e097788.png" alt="CC Switch添加供应商" loading="lazy" />
+
+        <p>添加完成后我们再重新打开终端，输入 <code>claude</code>，这时候就没有登录按钮了，接入国产大模型API的话是不需要代理的。到这里我们就可以正常使用CC了。</p>
+
+        <!-- ====== 五、VS中运用Claude插件教程 ====== -->
+        <h2>五、VS中运用Claude插件教程</h2>
+        <p>第一步，我们先在D盘（也可以是其他盘）新建一个文件夹，用于存放数据。我在D盘建了一个文件夹：</p>
+        <p class="img-caption">图21-建文件夹</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780643344052-893b042a-e2e2-4450-9453-73c3f39784cd.png" alt="建文件夹" loading="lazy" />
+
+        <p>第二步我们打开VS，在左上角的"<strong>File</strong>"中选择"<strong>Open Folder</strong>"，打开我们新建的文件夹。然后就可以开始使用Claude帮我们编写了。<strong>！！</strong><u>同样也可以在VS中的CC窗口中，与CC对话，让他帮你下载Python和配置虚拟环境。</u></p>
+
+        <p>补充一步，如果想做<strong>网页</strong>的话，我先介绍一下Flask。</p>
+        <p>Flask 是一个用 Python 编写的轻量级 Web 应用框架。</p>
+        <p>简单来说，它的作用是搭建网站的"骨架"。如果你想用 Python 编写一个网页、开发一个 API 接口，或者做一个在线工具，Flask 可以帮你处理网络请求、路由跳转和数据返回等琐碎的底层工作，让你专注于业务逻辑代码的编写。</p>
+        <p>Flask 的基本工作原理：Flask 的核心逻辑是<strong>路由（Routing）</strong>。你可以理解为：告诉程序，当用户访问某个网址（路径）时，应该调用哪段函数代码。</p>
+
+        <div class="code-block-wrapper">
+            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+            <pre><code class="language-python">from flask import Flask
+
+app = Flask(__name__)
+
+# 路由定义：当用户访问首页 '/' 时，执行下面的函数
+@app.route('/')
+def hello():
+    return "你好，这是我的第一个 Flask 网页！"
+
+if __name__ == '__main__':
+    app.run(debug=True)</code></pre>
+        </div>
+
+        <p>1、如果想做动态电商类的网页的话，可以在左上角找到"<strong>Terminal</strong>"，选择下拉第一个"<strong>New Terminal</strong>"，打开一个新的终端。</p>
+        <p class="img-caption">图22-VS菜单栏</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780643519279-feabb73f-bdd3-4aaf-bd41-739f3cd416a2.png" alt="VS菜单栏" loading="lazy" />
+
+        <p>2、在终端中输入（可以先看下方的<strong>重要建议</strong>）</p>
+        <div class="code-block-wrapper">
+            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+            <pre><code class="language-bash">pip install flask</code></pre>
+        </div>
+
+        <p>注意：如果你的电脑里同时安装了 Python 2 和 Python 3，或者使用了虚拟环境，可能需要使用 <code>pip3 install flask</code>。</p>
+        <p>你可以输入以下命令来检查是否已安装：</p>
+        <div class="code-block-wrapper">
+            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+            <pre><code class="language-bash">pip show flask</code></pre>
+        </div>
+        <p>如果安装成功，它会显示 Flask 的版本号、安装路径等信息。</p>
+
+        <blockquote>
+            <strong>⭐⭐⭐ 重要建议：关于 Python 项目的管理</strong><br/><br/>
+            为了避免污染电脑全局的 Python 环境（防止不同项目之间的包版本冲突），通常推荐使用 <strong>虚拟环境 (Virtual Environment)</strong>。步骤如下：
+        </blockquote>
+
+        <p>1、在项目文件夹下创建虚拟环境：</p>
+        <div class="code-block-wrapper">
+            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+            <pre><code class="language-bash"># Windows
+python -m venv venv
+
+# macOS/Linux
+python3 -m venv venv</code></pre>
+        </div>
+
+        <p>2、激活环境：</p>
+        <ul>
+            <li>Windows: <code>venv\Scripts\activate</code></li>
+            <li>macOS/Linux: <code>source venv/bin/activate</code></li>
+        </ul>
+
+        <p>3、在虚拟环境内安装 Flask：</p>
+        <div class="code-block-wrapper">
+            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+            <pre><code class="language-bash">pip install flask</code></pre>
+        </div>
+
+        <p class="img-caption">图23-终端位置（在VS界面中下部分）</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780644555119-7e50e033-85c4-46ee-a652-0b9b2837538f.png" alt="终端位置" loading="lazy" />
+
+        <!-- ====== 六、小白在VS中使用CC的建议 ====== -->
+        <h2>六、小白在VS中使用CC的建议</h2>
+        <p>对于没有基础编写代码或者网页的小白来说，可以借助<strong>Gemini</strong>（需要代理）来帮助完成代码的编写。</p>
+        <p>Gemini官网链接：<a href="https://gemini.google.com/" target="_blank" rel="noopener">https://gemini.google.com/</a></p>
+        <p>使用Google账号进行登录（没有请先注册）。</p>
+        <p>可以直接和Gemini描述你的需求，比如：</p>
+        <blockquote>
+            "你好，我是初学者，对Python没有基础，我电脑上装了Python 3.14，但是不会搭建环境，然后我在VS Code上接入了Claude Code，调用的DeepSeek API。我打算用Claude Code来做LDA主题分析，我了解到LDA主题分析需要用到Python，请你发给我我能直接发给Claude的指令，让他帮我安装一个虚拟环境。"
+        </blockquote>
+        <p>以上内容我发给Gemini后，他就给了我发给CC的指令：</p>
+
+        <!-- 折叠面板 1 -->
+        <details>
+            <summary>Plaintext</summary>
+            <div class="details-body">
+                <p>你好！我是一个 Python 零基础的初学者。我的电脑上安装了 Python 3.14，目前在 VS Code 中使用你来协助我。</p>
+                <p>我计划接下来使用 Python 做「LDA 主题分析」，现在需要你帮我在当前的项目文件夹下完全搭建好开发环境。请帮我执行以下步骤：</p>
+                <ol>
+                    <li>确认当前系统中的 Python 3.14 路径，并在当前目录下创建一个名为 <code>venv</code> 的 Python 虚拟环境。</li>
+                    <li>创建成功后，请帮我激活（Activate）这个虚拟环境。</li>
+                    <li>激活环境后，请帮我把 pip 升级到最新版本。</li>
+                    <li>针对 LDA 主题分析的任务，请帮我一并安装以下常用的核心第三方库（如果某些库在 Python 3.14 下有兼容性问题，请帮我选择最合适的替代版本或安装方式）：</li>
+                </ol>
+                <ul>
+                    <li>gensim（用于 LDA 模型构建）</li>
+                    <li>pandas 和 numpy（用于数据处理）</li>
+                    <li>matplotlib 和 pyLDAvis（用于主题可视化）</li>
+                    <li>jieba（如果是中文文本分析）或 nltk（如果是英文文本分析）</li>
+                </ul>
+                <p>请直接在 VS Code 的终端里帮我执行这些创建、激活和安装的命令。如果遇到任何权限问题或版本不兼容，请直接帮我自动修复。谢谢！</p>
+            </div>
+        </details>
+
+        <p>我就把这个指令复制下来之后发给了CC，CC就开始运作了，最后产出的结果如图：</p>
+        <p class="img-caption">图24-搭建LDA分析环境</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780645591302-749203e9-d545-49cf-9a85-609eb6f51dea.png" alt="搭建LDA分析环境" loading="lazy" />
+
+        <p>非常的方便对吧。所以当你有需求，需要去询问他人或者老师时，可以直接将该问题发给Gemini，告诉他你的问题你的要求和你现在的情况，他会给到你发给CC的指令，CC会帮你进行编写和排查。</p>
+
+        <!-- ====== 七、关于网页托管的问题 ====== -->
+        <h2>七、关于网页托管的问题</h2>
+
+        <h3>（一）引言</h3>
+        <p>网页根据其内容生成方式的不同，主要被划分为<strong>静态网页</strong>与<strong>动态网页</strong>两大阵营。静态网页如同精心编纂的印刷品，其所有内容在服务器端预先写死并固定，无论用户在何时何地访问，服务器返回的都是完全相同的原始文件。这种架构极度依赖手动维护，任何细微的更新都需要人工介入修改源代码，因此它更适合用于那些信息固定、无需频繁交互的展示型门户或个人文档。</p>
+        <p>相比之下，动态网页则更像是一个根据需求实时运转的加工中心。当用户发出访问请求时，服务器并不会直接交付既有的成品，而是即刻启动后台逻辑（如 Flask 程序），从数据库中提取实时数据，将其填充到预设的页面模板中，最终构建出一个专属于该用户的、即时渲染的页面。这种模式赋予了网站极高的交互性与智能，使得用户登录、个性化推荐、内容交互等复杂功能成为可能，也正是因为这种逻辑处理能力，它成为了现代 Web 应用开发的核心支撑。</p>
+
+        <h3>（二）静态网页</h3>
+        <p>如果你想将 Web 应用部署到公网服务器上，那么对于静态网页来说GitHub就是一个很好的托管站。下面就来介绍如何将网页托管到GitHub上。（动态网页也有这个过程，所以这一点很重要）</p>
+
+        <p><strong>第一步</strong>，前往GitHub官网，上文有发布过链接，为了方便展示，此处再次放上链接。网页链接：<a href="https://github.com/" target="_blank" rel="noopener">https://github.com/</a></p>
+
+        <p><strong>第二步</strong>，新建仓库（Repository）：点击右上角的 + 号 → New repository。</p>
+        <p class="img-caption">图25-在GitHub上新建仓库</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780646069016-eced20b3-b5e4-443b-ab62-1a069701ff5f.png" alt="新建仓库" loading="lazy" />
+
+        <p>给项目起个名字（例如 <code>Caribbean-Climate-Simulation</code>）。</p>
+        <p><strong>Public/Private</strong>：必须选 <strong>Public（公开）</strong>，否则免费版 GitHub Pages 无法托管。</p>
+        <p>Add a README file（可选），点击 Create repository。</p>
+        <p class="img-caption">图26-填写仓库基本信息</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780646231709-10f41bff-7b01-4498-bcd9-41641bd73427.png" alt="填写仓库基本信息" loading="lazy" />
+
+        <p><strong>第三步</strong>，如果你不熟悉 Git 命令行，可以直接使用网页上传：</p>
+        <ul>
+            <li>进入你刚创建的仓库页面。</li>
+            <li>点击 Add file → Upload files。</li>
+            <li>将你本地项目文件夹里的所有内容（包括 HTML, CSS, JS 和图片文件夹）拖进网页。</li>
+            <li>等待上传完成后，在底部的输入框写下提交信息（比如 "Initial release"），点击 Commit changes。</li>
+        </ul>
+        <p class="img-caption">图27-你所建的仓库中上传本地文件夹中的内容</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780646748466-680b6412-1e11-43bc-ae1d-8a3d0ceeb718.png" alt="上传文件" loading="lazy" />
+
+        <p><strong>第四步</strong>，在 GitHub 仓库页面，点击顶部的 <strong>Settings（设置）</strong>。</p>
+        <ul>
+            <li>在左侧菜单栏找到 <strong>Pages</strong>（位于 Code and automation 分组下）。</li>
+            <li>在 Build and deployment 下的 Branch 选项中：将 None 改为 <strong>main</strong>（或者你的分支名），右侧文件夹选择 <strong>/(root)</strong>。</li>
+            <li>点击 <strong>Save</strong>。</li>
+        </ul>
+        <p class="img-caption">图28-激活 GitHub Pages</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780646862106-a9cfc3ea-2a8f-4bfd-89d6-35edbe5bd174.png" alt="激活GitHub Pages" loading="lazy" />
+
+        <p><strong>第五步</strong>，保存后，顶部会出现一个黄色或蓝色的进度条。稍等 1-3 分钟。刷新页面，你会看到一行绿色的文字："<strong>Your site is live at...</strong>"。点击那个链接，你的网页就正式发布在互联网上了！</p>
+        <p class="img-caption">图29-网页位置</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780646987818-2187c92a-def9-4607-a201-e3603359f48d.png" alt="网页位置" loading="lazy" />
+
+        <h3>（三）动态网页</h3>
+        <p>部署动态网页就会相对麻烦一些，上传到GitHub中的操作大体是一样的。下面我们来一起看。</p>
+
+        <p><strong>第一步</strong>，前往GitHub官网。<br/>
+        <strong>第二步</strong>，新建仓库（Repository）：点击右上角的 + 号 → New repository。给项目起个名字（例如 <code>my-flask-app</code>）。选择 Public（公开）或 Private（私有）。<span class="text-danger">这一步和静态网页不一样！建议选私有，防止 API 密钥泄露。</span> 点击 Create repository。<br/>
+        <strong>第三步</strong>，我们要运用到一个插件，叫做 <strong>Git</strong>（静态网页中有提到，这里来详细介绍）。如果你已经下载好了Git，请跳至第四步，如果没有，我给大家附上了Git的安装教程。</p>
+        <p>Git安装教程网址：<a href="https://blog.csdn.net/mukes/article/details/115693833" target="_blank" rel="noopener">https://blog.csdn.net/mukes/article/details/115693833</a></p>
+
+        <p><strong>第四步</strong>，在 VS Code 中提交代码。打开 VS Code 的终端，初始化 Git（如果没有的话）：</p>
+        <div class="code-block-wrapper">
+            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+            <pre><code class="language-bash">git init</code></pre>
+        </div>
+
+        <p>至关重要的一步：在项目根目录下创建一个名为 <code>.gitignore</code> 的文件，里面写上：</p>
+        <div class="code-block-wrapper">
+            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+            <pre><code class="language-text">__pycache__/
+*.pyc
+.env
+instance/</code></pre>
+        </div>
+        <blockquote>
+            ⚠️ <strong>注意：千万不要把你的 DeepSeek API Key 直接写在代码里传到 GitHub 上！</strong>
+        </blockquote>
+
+        <p>关联远程仓库并推送到 GitHub（根据 GitHub 页面上提示的命令操作）：</p>
+        <div class="code-block-wrapper">
+            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+            <pre><code class="language-bash">git add .
+git commit -m "first commit"
+git branch -M main
+git remote add origin https://github.com/你的用户名/你的仓库名.git
+git push -u origin main</code></pre>
+        </div>
+
+        <hr>
+
+        <h3>第二步：准备部署所需的文件（让服务器认识你的项目）</h3>
+        <p>在本地，VS Code 知道怎么运行你的 Flask，但云服务器不知道。你需要在项目的根目录下添加两个核心文件：</p>
+
+        <h4>1. 生成 <code>requirements.txt</code>（依赖包列表）</h4>
+        <p>告诉服务器需要安装哪些 Python 库。在 VS Code 终端运行：</p>
+        <div class="code-block-wrapper">
+            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+            <pre><code class="language-bash">pip freeze > requirements.txt</code></pre>
+        </div>
+        <p>确保里面包含了 flask、requests 或 openai（你调用 DeepSeek 用到的库）以及 gunicorn。</p>
+
+        <p><strong>第五步</strong>，创建 Procfile（运行指令）。告诉服务器用什么命令启动你的网页。在根目录下新建一个名为 <code>Procfile</code> 的文件（注意：没有后缀名），内容写上：</p>
+        <div class="code-block-wrapper">
+            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+            <pre><code class="language-text">web: gunicorn app:app</code></pre>
+        </div>
+        <p>（注：冒号后面的第一个 <code>app</code> 是你 Flask 主文件的名字，比如 <code>app.py</code>；第二个 <code>app</code> 是你在代码里定义的实例化对象名，如 <code>app = Flask(__name__)</code>）</p>
+
+        <p>修改并提交：在 VS Code 中保存这两个文件，再次推送到 GitHub：</p>
+        <div class="code-block-wrapper">
+            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+            <pre><code class="language-bash">git add .
+git commit -m "add config files"
+git push</code></pre>
+        </div>
+
+        <p>当然，我也建议给CC更完整的指令（也就是在CC窗口中完成），让CC帮你Push：</p>
+
+        <!-- 折叠面板 2 -->
+        <details>
+            <summary>CC协助Push的指令</summary>
+            <div class="details-body">
+                <p>Claude，目前本地代码架构及功能已验证完毕，现在进行生产环境同步。请严格按照以下步骤执行 Git 操作，将项目更新至 GitHub：</p>
+                <p><strong>1. 【安全检查】：</strong></p>
+                <ul>
+                    <li>在执行推送前，请检查目录下是否有 .env、__pycache__、.DS_Store 或其他敏感/临时文件。请确保这些文件已通过 .gitignore 正确排除，不要将 API Key 等隐私信息上传。</li>
+                </ul>
+                <p><strong>2. 【Git 执行序列】：</strong></p>
+                <ul>
+                    <li>执行 <code>git add .</code> 将所有必要的源码文件加入暂存区。</li>
+                    <li>执行 <code>git commit -m "feat: 完成商品动态详情页架构与支付跳转闭环"</code>（或类似简洁的提交信息）。</li>
+                    <li>执行 <code>git push origin main</code>（若你的分支名不是 main，请自动识别并推送到对应分支）。</li>
+                </ul>
+                <p><strong>3. 【最终状态确认】：</strong></p>
+                <ul>
+                    <li>推送完成后，请在终端向我报告："代码已成功推送至 GitHub，Render 应已自动触发重新部署。"</li>
+                    <li>请给出 Render 的部署状态链接（或提示我手动去 Render 控制台查看）。</li>
+                </ul>
+            </div>
+        </details>
+
+        <p>（注："feat: 完成商品动态详情页架构与支付跳转闭环"其实就是你的更新内容标题，可以根据你自己所修改的内容来修改名称，第三条这个<strong>Render我后面步骤会提到</strong>，这里先展示出来了。）</p>
+
+        <p><strong>第六步</strong>，选择免费的云平台进行"联网"部署。</p>
+        <p>目前市面上有很多适合新手、免运维且有免费额度的托管平台。这里推荐两个最主流的选择：<strong>Render</strong> 和 <strong>Vercel</strong>。我们以对 Python 后端支持最友好的 Render 为例：</p>
+
+        <h4>使用 Render 部署</h4>
+        <ol>
+            <li><strong>注册 Render</strong>：前往 <a href="https://render.com" target="_blank" rel="noopener">render.com</a>，直接选择 Sign in with GitHub（用 GitHub 账号登录）。</li>
+        </ol>
+        <p class="img-caption">图30-登录Render</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780648036382-d331b476-3dae-4d78-b281-0769f3814eb8.png" alt="登录Render" loading="lazy" />
+
+        <ol start="2">
+            <li><strong>新建服务</strong>：点击右上角的 New + → 选择 Web Service。</li>
+        </ol>
+        <p class="img-caption">图31-创建网页服务</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780648180634-f3895a81-1f5b-4d8c-97aa-3f3eafdaa33e.png" alt="创建网页服务" loading="lazy" />
+
+        <ol start="3">
+            <li><strong>连接 GitHub 仓库</strong>：在列表中找到你刚刚上传的 Flask 仓库，点击 Connect。</li>
+            <li><strong>配置基本信息</strong>：
+                <ul>
+                    <li>Name: 随便填一个你的应用名称。</li>
+                    <li>Language: 选择 Python 3。</li>
+                    <li>Build Command: 填入 <code>pip install -r requirements.txt</code>。</li>
+                    <li>Start Command: 填入 <code>gunicorn app:app</code>（如果它没有自动识别的话）。</li>
+                </ul>
+            </li>
+        </ol>
+        <p class="img-caption">图32-填写信息</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780648278025-0ccd7f66-48bb-4817-8c76-f4d58fdb16db.png" alt="填写信息" loading="lazy" />
+
+        <ol start="5">
+            <li><strong>配置你的 DeepSeek API Key（最重要）</strong>：
+                <ul>
+                    <li>页面向下拉，找到 Advanced（高级设置）或 Environment Variables（环境变量）。</li>
+                    <li>点击 Add Environment Variable。</li>
+                    <li>Key 填你在 Flask 代码里读取的变量名（例如 <code>DEEPSEEK_API_KEY</code>）。</li>
+                    <li>Value 填入你真实的 DeepSeek API 密匙。</li>
+                </ul>
+                （这样你就不需要把密匙写在代码里，既安全又能正常调用 API）。
+            </li>
+            <li><strong>选择免费方案</strong>：选择 Free 实例类型。</li>
+            <li><strong>点击 Deploy Web Service</strong>。</li>
+        </ol>
+
+        <p>以上内容完成后，Render 会开始自动下载你的代码、安装 Python 依赖并运行。大约需要 2-5 分钟。部署成功后，你会在 Render 页面的左上角看到一个形如 <a href="https://my-flask-app.onrender.com" target="_blank" rel="noopener">https://my-flask-app.onrender.com</a> 的专属网址。</p>
+        <p>现在，你可以把这个网址复制下来，发到你自己的手机上，或者转发给身边的朋友。无论他们在哪里，只要点击这个链接，就能直接打开并使用你开发的这个搭载了 DeepSeek 模型的 Flask 网页了！</p>
+        <p class="img-caption">图33-部署成功界面</p>
+        <img src="https://cdn.nlark.com/yuque/0/2026/png/69043290/1780648399680-5c414afa-89e5-4360-a2d7-e8ef65fa22ac.png" alt="部署成功界面" loading="lazy" />
+
+        <h3>（四）关于Render的一些须知</h3>
+        <p>Render 的免费额度（Free Tier）对于学生和个人开发者做项目展示、课设或者日常调试来说完全够用，而且它不需要绑定信用卡。不过因为是免费的，它有一些具体的限制条件。以下是 Render 免费额度的核心细节：</p>
+
+        <h4>1. 运行时间（每月 750 小时）</h4>
+        <p>额度：每个账号每月有 <strong>750 小时</strong> 的免费运行时间（单独算在 Web Services 上）。这意味着：一个月最多也就 744 小时（31天 × 24小时），所以如果你只部署这一个 Flask 网页，它相当于可以 <strong>24小时无间断运行一整月</strong>。如果你部署了两个免费项目，它们就会平分这 750 小时。</p>
+
+        <h4>2. 免费额度重置周期</h4>
+        <p>所有的流量和时间额度会在<strong>每个月的 1 号</strong>自动清零并重置。</p>
+
+        <h4>3. 流量限制（每月 100 GB）</h4>
+        <p>额度：每月免费外网出站流量（Egress Traffic）为 <strong>100 GB</strong>。这意味着：对于一个文字交互、调用 API 的 Flask 网页来说，100 GB 是一个天文数字，只要你不让别人在你的网页上疯狂下载大文件、视频，这个流量绝对用不完。</p>
+
+        <h4>4. 硬件配置</h4>
+        <p>配置：<strong>512 MB 内存 (RAM) + 0.1核 CPU</strong>。这意味着：跑一个 Flask 后端去对接 DeepSeek API 绰绰有余，处理日常的并发访问完全没问题。但它不适合用来做本地的大规模数据处理或复杂的深度学习模型训练。</p>
+
+        <h4>⚠️ 使用免费额度必须注意的"坑"（核心机制）</h4>
+        <p>为了节省服务器资源，Render 的免费项目有一个<strong>自动休眠机制（Auto-Sleep）</strong>：</p>
+        <ul>
+            <li><strong>休眠触发</strong>：如果你的网页连续 <strong>15分钟</strong> 没有任何人访问，Render 就会把你的 Flask 服务"挂起"（暂停运行）。</li>
+            <li><strong>唤醒延迟</strong>：当休眠后，下一个人（或者你自己）再次打开这个网页链接时，Render 需要重新启动 Python 环境。这时候网页会卡住、转圈，大约需要 <strong>50秒到 1分钟</strong> 才能慢吞吞地打开。</li>
+            <li><strong>对你的影响</strong>：网页并没有坏，只是在"起步"。只要成功打开一次，接下来的访问就会恢复正常的秒开速度。因此，如果你要拿给老师或朋友看，建议自己提前 1 分钟点开网址，把它"唤醒"。</li>
+        </ul>
+        <p>如果你觉得这个自动休眠很烦，或者项目之后需要更强的性能，它的下一档付费配置（Starter）是 $7/月，就不会再休眠了。不过现阶段，免费额度来做开发和展示是完全足够了！</p>
+
+        <hr>
+        <p style="text-align:center; font-size:18px; font-weight:700; margin:32px 0;">以上就是我所有的内容分享。</p>
+
+    </div><!-- .content -->
+</div><!-- .container -->
+
+<div class="footer">
+    <p>制作者：杭州师范大学 · 阿里巴巴商学院 · 旅游管理 253班 · 沈皓天</p>
+    <p style="margin-top:4px;">托管于 GitHub Pages</p>
+</div>
+
+<!-- ============ highlight.js ============ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+    // ===== 语法高亮 =====
+    hljs.highlightAll();
+
+    // ===== 复制按钮 =====
+    function copyCode(btn) {
+        const code = btn.parentElement.querySelector('code').innerText;
+        navigator.clipboard.writeText(code).then(() => {
+            btn.textContent = '已复制 ✓';
+            btn.classList.add('copied');
+            setTimeout(() => {
+                btn.textContent = '复制';
+                btn.classList.remove('copied');
+            }, 1800);
+        }).catch(() => {
+            // 降级方案
+            const ta = document.createElement('textarea');
+            ta.value = code;
+            ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            btn.textContent = '已复制 ✓';
+            btn.classList.add('copied');
+            setTimeout(() => {
+                btn.textContent = '复制';
+                btn.classList.remove('copied');
+            }, 1800);
+        });
+    }
+
+    // ===== Lightbox 图片放大 =====
+    const overlay = document.getElementById('lightbox-overlay');
+    const lbImg = document.getElementById('lightbox-img');
+    const lbClose = document.getElementById('lightbox-close');
+
+    // 绑定所有图片
+    document.querySelectorAll('.content img').forEach(img => {
+        img.addEventListener('click', () => {
+            lbImg.src = img.src;
+            lbImg.alt = img.alt;
+            overlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+    });
+
+    // 关闭函数
+    function closeLightbox() {
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    // 点击遮罩关闭
+    overlay.addEventListener('click', closeLightbox);
+
+    // 点击 X 关闭
+    lbClose.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeLightbox();
+    });
+
+    // Esc 关闭
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && overlay.classList.contains('active')) {
+            closeLightbox();
+        }
+    });
+
+    // 阻止图片本身点击冒泡（避免点放大图时关闭）
+    lbImg.addEventListener('click', (e) => e.stopPropagation());
+</script>
+</body>
+</html>
